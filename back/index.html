@@ -1,88 +1,717 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
     <head>
-        <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-        <title>Socket.IO chat</title>
-        <style>
-            body {
-                margin: 0;
-                padding-bottom: 3rem;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-                    Roboto, Helvetica, Arial, sans-serif;
-            }
-
-            #form {
-                background: rgba(0, 0, 0, 0.15);
-                padding: 0.25rem;
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                display: flex;
-                height: 3rem;
-                box-sizing: border-box;
-                backdrop-filter: blur(10px);
-            }
-            #input {
-                border: none;
-                padding: 0 1rem;
-                flex-grow: 1;
-                border-radius: 2rem;
-                margin: 0.25rem;
-            }
-            #input:focus {
-                outline: none;
-            }
-            #form > button {
-                background: #333;
-                border: none;
-                padding: 0 1rem;
-                margin: 0.25rem;
-                border-radius: 3px;
-                outline: none;
-                color: #fff;
-            }
-
-            #messages {
-                list-style-type: none;
-                margin: 0;
-                padding: 0;
-            }
-            #messages > li {
-                padding: 0.5rem 1rem;
-            }
-            #messages > li:nth-child(odd) {
-                background: #efefef;
-            }
-        </style>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="styles.css" />
+        <title>Chat Socket.IO - Orange Moderne & Dark Mode Toggle</title>
     </head>
-    <body>
-        <ul id="messages"></ul>
-        <form id="form" action="">
-            <input id="input" autocomplete="off" /><button>Send</button>
-        </form>
-    </body>
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        var socket = io();
+    <style>
+        /* Reset et base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-        var form = document.getElementById("form");
-        var input = document.getElementById("input");
-        var messages = document.getElementById("messages");
+        :root {
+            /* Couleurs principales */
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3a3a3a;
+            --bg-hover: #404040;
 
-        form.addEventListener("submit", function (e) {
-            e.preventDefault();
-            if (input.value) {
-                socket.emit("chat message", input.value);
-                input.value = "";
+            /* Orange palette */
+            --orange-primary: #ff6b35;
+            --orange-secondary: #ff8c42;
+            --orange-accent: #ffaa5c;
+            --orange-dark: #e55a2b;
+
+            /* Texte */
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --text-muted: #808080;
+
+            /* Bordures */
+            --border-color: #4a4a4a;
+            --border-focus: var(--orange-primary);
+
+            /* Ombres */
+            --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-orange: 0 4px 16px rgba(255, 107, 53, 0.3);
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout principal */
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 2px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: var(--shadow-medium);
+        }
+
+        #sidebar h3 {
+            color: var(--orange-primary);
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Liste des rooms */
+        #room-list {
+            list-style: none;
+            flex: 1;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        #room-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #room-list::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+            border-radius: 3px;
+        }
+
+        #room-list::-webkit-scrollbar-thumb {
+            background: var(--orange-primary);
+            border-radius: 3px;
+        }
+
+        #room-list li {
+            padding: 12px 16px;
+            margin: 5px 0;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            font-weight: 500;
+        }
+
+        #room-list li:hover {
+            background: var(--bg-hover);
+            border-color: var(--orange-secondary);
+            transform: translateX(5px);
+        }
+
+        #room-list li.active {
+            background: linear-gradient(
+                135deg,
+                var(--orange-primary),
+                var(--orange-secondary)
+            );
+            color: var(--bg-primary);
+            font-weight: 600;
+            box-shadow: var(--shadow-orange);
+        }
+
+        /* Formulaire création room */
+        #create-room-form {
+            display: flex;
+            gap: 8px;
+        }
+
+        #create-room-input {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        #create-room-input:focus {
+            outline: none;
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2);
+        }
+
+        #create-room-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        #create-room-btn {
+            padding: 12px 16px;
+            background: linear-gradient(
+                135deg,
+                var(--orange-primary),
+                var(--orange-secondary)
+            );
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        #create-room-btn:hover {
+            background: linear-gradient(
+                135deg,
+                var(--orange-secondary),
+                var(--orange-accent)
+            );
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-orange);
+        }
+
+        /* Toggle dark mode */
+        #darkmode-toggle {
+            padding: 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-top: auto;
+        }
+
+        #darkmode-toggle:hover {
+            background: var(--orange-primary);
+            border-color: var(--orange-primary);
+            color: var(--bg-primary);
+        }
+
+        /* Container de chat */
+        #chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+        }
+
+        #current-room {
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border-color);
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--orange-primary);
+            text-align: center;
+            box-shadow: var(--shadow-light);
+        }
+
+        /* Messages */
+        #messages {
+            flex: 1;
+            list-style: none;
+            padding: 20px;
+            overflow-y: auto;
+            background: linear-gradient(to bottom, var(--bg-primary), #1e1e1e);
+        }
+
+        #messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #messages::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        #messages::-webkit-scrollbar-thumb {
+            background: var(--orange-primary);
+            border-radius: 4px;
+        }
+
+        #messages li {
+            margin: 12px 0;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border-left: 4px solid var(--orange-primary);
+            animation: slideIn 0.3s ease;
+            box-shadow: var(--shadow-light);
+        }
+
+        #messages li.own {
+            background: linear-gradient(
+                135deg,
+                var(--orange-primary),
+                var(--orange-secondary)
+            );
+            color: var(--bg-primary);
+            border-left: 4px solid var(--bg-primary);
+            margin-left: auto;
+            margin-right: 0;
+            max-width: 70%;
+            text-align: right;
+        }
+
+        .nickname {
+            font-weight: 600;
+            color: var(--orange-accent);
+            margin-right: 8px;
+        }
+
+        #messages li.own .nickname {
+            color: var(--bg-primary);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
             }
-        });
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
-        socket.on("chat message", function (msg) {
-            var item = document.createElement("li");
-            item.textContent = msg;
-            messages.appendChild(item);
-            window.scrollTo(0, document.body.scrollHeight);
-        });
-    </script>
+        /* Formulaire de message */
+        #form {
+            display: flex;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-top: 2px solid var(--border-color);
+            gap: 12px;
+        }
+
+        #input {
+            flex: 1;
+            padding: 14px 18px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 25px;
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        #input:focus {
+            outline: none;
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.2);
+        }
+
+        #input::placeholder {
+            color: var(--text-muted);
+        }
+
+        #input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #form button {
+            padding: 14px 24px;
+            background: linear-gradient(
+                135deg,
+                var(--orange-primary),
+                var(--orange-secondary)
+            );
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-light);
+        }
+
+        #form button:hover {
+            background: linear-gradient(
+                135deg,
+                var(--orange-secondary),
+                var(--orange-accent)
+            );
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-orange);
+        }
+
+        /* Modal pseudo */
+        #nickname-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        #nickname-modal > div {
+            background: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-medium);
+            border: 2px solid var(--orange-primary);
+            text-align: center;
+            min-width: 400px;
+        }
+
+        #nickname-modal h2 {
+            color: var(--orange-primary);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        #nickname-input {
+            width: 100%;
+            padding: 14px 18px;
+            margin: 15px 0;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        #nickname-input:focus {
+            outline: none;
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2);
+        }
+
+        #nickname-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        #set-nickname-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(
+                135deg,
+                var(--orange-primary),
+                var(--orange-secondary)
+            );
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        #set-nickname-btn:hover {
+            background: linear-gradient(
+                135deg,
+                var(--orange-secondary),
+                var(--orange-accent)
+            );
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-orange);
+        }
+
+        #nickname-error {
+            color: #ff4757;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #app {
+                flex-direction: column;
+            }
+
+            #sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+                border-right: none;
+                border-bottom: 2px solid var(--border-color);
+            }
+
+            #messages li.own {
+                max-width: 85%;
+            }
+
+            #nickname-modal > div {
+                margin: 20px;
+                min-width: auto;
+                width: calc(100% - 40px);
+            }
+        }
+
+        /* Animations et effets */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Effet de focus sur les éléments interactifs */
+        button:focus,
+        input:focus {
+            outline: 2px solid var(--orange-primary);
+            outline-offset: 2px;
+        }
+
+        /* Style pour les éléments sélectionnables */
+        ::selection {
+            background: var(--orange-primary);
+            color: var(--bg-primary);
+        }
+    </style>
+    <body>
+        <div id="app">
+            <!-- Sidebar rooms -->
+            <div id="sidebar">
+                <h3>Rooms</h3>
+                <ul id="room-list"></ul>
+                <form id="create-room-form" autocomplete="off">
+                    <input
+                        id="create-room-input"
+                        type="text"
+                        placeholder="Nouvelle room"
+                        required
+                    />
+                    <button id="create-room-btn" type="submit">Créer</button>
+                </form>
+                <button
+                    id="darkmode-toggle"
+                    type="button"
+                    aria-label="Basculer mode sombre"
+                >
+                    🌙 Mode Sombre
+                </button>
+            </div>
+
+            <!-- Chat container -->
+            <div id="chat-container">
+                <div id="current-room">Aucune room sélectionnée</div>
+                <ul id="messages"></ul>
+                <form id="form" autocomplete="off">
+                    <input
+                        id="input"
+                        autocomplete="off"
+                        placeholder="Écris un message..."
+                        disabled
+                    />
+                    <button type="submit">Envoyer</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal pseudo -->
+        <div id="nickname-modal">
+            <div>
+                <h2>Choisis ton pseudo</h2>
+                <input
+                    id="nickname-input"
+                    type="text"
+                    maxlength="20"
+                    placeholder="Ton pseudo (2-20 caractères)"
+                />
+                <button id="set-nickname-btn" type="button">Valider</button>
+                <div id="nickname-error"></div>
+            </div>
+        </div>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            const socket = io();
+
+            const roomListEl = document.getElementById("room-list");
+            const createRoomForm = document.getElementById("create-room-form");
+            const createRoomInput =
+                document.getElementById("create-room-input");
+            const currentRoomEl = document.getElementById("current-room");
+            const messages = document.getElementById("messages");
+            const form = document.getElementById("form");
+            const input = document.getElementById("input");
+
+            const nicknameModal = document.getElementById("nickname-modal");
+            const nicknameInput = document.getElementById("nickname-input");
+            const setNicknameBtn = document.getElementById("set-nickname-btn");
+            const nicknameError = document.getElementById("nickname-error");
+
+            const darkmodeToggle = document.getElementById("darkmode-toggle");
+
+            let currentRoom = null;
+            let nickname = null;
+
+            // Met à jour la liste des rooms
+            function updateRoomList(rooms) {
+                roomListEl.innerHTML = "";
+                rooms.forEach((room) => {
+                    const li = document.createElement("li");
+                    li.textContent = room;
+                    li.dataset.room = room;
+                    if (room === currentRoom) {
+                        li.classList.add("active");
+                    }
+                    li.addEventListener("click", () => {
+                        if (room !== currentRoom) {
+                            joinRoom(room);
+                        }
+                    });
+                    roomListEl.appendChild(li);
+                });
+            }
+
+            // Crée une nouvelle room via socket
+            createRoomForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const roomName = createRoomInput.value.trim();
+                if (roomName && roomName.length <= 30) {
+                    socket.emit("create room", roomName);
+                    joinRoom(roomName);
+                    createRoomInput.value = "";
+                }
+            });
+
+            // Fonction pour rejoindre une room
+            function joinRoom(room) {
+                if (currentRoom) {
+                    socket.emit("leave room", currentRoom);
+                }
+                currentRoom = room;
+                socket.emit("join room", room);
+                currentRoomEl.textContent = "Room : " + room;
+                messages.innerHTML = "";
+                input.disabled = false;
+                input.focus();
+                updateRoomList(
+                    [...roomListEl.querySelectorAll("li")].map(
+                        (li) => li.dataset.room
+                    )
+                );
+            }
+
+            // Gérer la réception de la liste des rooms
+            socket.on("rooms list", (rooms) => {
+                updateRoomList(rooms);
+                // Si aucune room sélectionnée, rejoint la première
+                if (!currentRoom && rooms.length > 0) {
+                    joinRoom(rooms[0]);
+                }
+            });
+
+            // Réception des messages
+            socket.on("chat message", (data) => {
+                if (data.room === currentRoom) {
+                    appendMessage(
+                        data.nickname,
+                        data.message,
+                        data.nickname === nickname
+                    );
+                }
+            });
+
+            // Ajoute un message dans la liste
+            function appendMessage(nick, msg, isOwn = false) {
+                const li = document.createElement("li");
+                if (isOwn) li.classList.add("own");
+                const nickSpan = document.createElement("span");
+                nickSpan.textContent = nick + ": ";
+                nickSpan.classList.add("nickname");
+                li.appendChild(nickSpan);
+                li.appendChild(document.createTextNode(msg));
+                messages.appendChild(li);
+                messages.scrollTop = messages.scrollHeight;
+            }
+
+            // Gestion du formulaire d'envoi de message
+            form.addEventListener("submit", (e) => {
+                e.preventDefault();
+                if (!nickname)
+                    return alert("Tu dois choisir un pseudo avant !");
+                if (!currentRoom) return alert("Tu dois rejoindre une room !");
+                const val = input.value.trim();
+                if (val) {
+                    socket.emit("chat message", {
+                        room: currentRoom,
+                        message: val,
+                        nickname,
+                    });
+                    input.value = "";
+                }
+            });
+
+            // Gestion du pseudo (modal)
+            setNicknameBtn.addEventListener("click", setNickname);
+            nicknameInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") setNickname();
+            });
+
+            function setNickname() {
+                const nick = nicknameInput.value.trim();
+                if (!nick) {
+                    nicknameError.textContent =
+                        "Le pseudo ne peut pas être vide.";
+                    return;
+                }
+                if (nick.length < 2 || nick.length > 20) {
+                    nicknameError.textContent =
+                        "Le pseudo doit faire entre 2 et 20 caractères.";
+                    return;
+                }
+                nickname = nick;
+                nicknameModal.style.display = "none";
+                input.disabled = false;
+                input.focus();
+            }
+
+            // Désactiver le champ message tant que pseudo pas défini
+            input.disabled = true;
+
+            // Dark mode toggle
+            darkmodeToggle.addEventListener("click", () => {
+                const isDark =
+                    document.documentElement.classList.toggle("dark-mode");
+                darkmodeToggle.textContent = isDark
+                    ? "☀️ Mode Clair"
+                    : "🌙 Mode Sombre";
+            });
+
+            // Initialisation du texte du bouton selon le thème système
+            if (
+                window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches
+            ) {
+                document.documentElement.classList.add("dark-mode");
+                darkmodeToggle.textContent = "☀️ Mode Clair";
+            } else {
+                darkmodeToggle.textContent = "🌙 Mode Sombre";
+            }
+        </script>
+    </body>
 </html>
