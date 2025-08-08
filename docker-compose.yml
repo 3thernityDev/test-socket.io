@@ -1,0 +1,10 @@
+services:
+    back:
+        image: node:alpine
+        container_name: test-socket-io
+        command: sh -cc "npm install && npm run dev"
+        volumes:
+            - ./back:/app  
+        working_dir: /app
+        ports:
+            - "9090:9090"
