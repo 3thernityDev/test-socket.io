@@ -20,6 +20,9 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         console.log("Un utilisateur s'est déconnecté");
     });
+    socket.on("chat message", (msg) => {
+        console.log("message reçu:" + msg);
+    });
 });
 
 server.listen(9090, () => {
